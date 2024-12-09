@@ -1,78 +1,68 @@
-require('dotenv').config(); // Memuat variabel lingkungan dari .env
-const express = require('express');
 const mongoose = require('mongoose');
-const bodyParser = require('body-parser');
-const cors = require('cors');
 
-// Inisialisasi aplikasi
-const app = express();
-app.use(cors());
-app.use(bodyParser.json());
+const dbURI = process.env.MONGODB_URI || "mongodb+srv://rakha-dev:Rakhadwip14@iotrakhadev.mdt0f.mongodb.net/sensor_database?retryWrites=true&w=majority&appName=IotRakhaDev";
+let isConnected = false;
 
-// Koneksi ke MongoDB Atlas
-const mongoURI = process.env.MONGO_URI;
-mongoose.connect(mongoURI, { useNewUrlParser: true, useUnifiedTopology: true })
-    .then(() => console.log('Connected to MongoDB Atlas'))
-    .catch(err => console.error('MongoDB Connection Error:', err));
+async function connectToDatabase() {
+    if (isConnected) return;
+    await mongoose.connect(dbURI, { useNewUrlParser: true, useUnifiedTopology: true });
+    isConnected = true;
+    console.log("MongoDB connected successfully");
+}
 
-// Skema MongoDB
+/**
+ * Schema untuk data sensor:
+ * - gasLevel (Number): Nilai tingkat gas dari sensor MQ135
+ * - timestamp (Date): Waktu perekaman data, default saat ini
+ */
 const sensorSchema = new mongoose.Schema({
-    sensor: String,
-    value: Number,
-    temperature: Number,
-    humidity: Number,
+    gasLevel: Number,
     timestamp: { type: Date, default: Date.now }
 });
-const Sensor = mongoose.model('Sensor', sensorSchema);
 
-// Route untuk menerima data sensor (POST)
-app.post('/', async (req, res) => {
-    try {
-        const { sensor, value, temperature, humidity } = req.body;
+// Model MongoDB yang menggunakan schema 'sensorSchema'
+// Catatan: Nama koleksi adalah "sensor_data"
+const SensorData = mongoose.model('mq135', sensorSchema);
 
-        if (!sensor) {
-            return res.status(400).json({ error: 'Sensor type is required' });
+/**
+ * Endpoint untuk menangani request HTTP
+ * - Method:
+ *    - POST: Menyimpan data sensor baru
+ *    - GET: Mengambil semua data sensor
+ */
+module.exports = async (req, res) => {
+    await connectToDatabase();
+
+    if (req.method === "POST") {
+        try {
+            const { gasLevel } = req.body;
+
+            // Validasi data dari request
+            if (gasLevel === undefined) {
+                return res.status(400).json({ error: "Data tidak lengkap" });
+            }
+
+            // Membuat data baru di database
+            const newSensorData = new SensorData({ gasLevel });
+            await newSensorData.save();
+
+            res.status(200).json({ message: "Data berhasil disimpan" });
+        } catch (error) {
+            console.error("Error while saving data:", error);
+            res.status(500).json({ error: "Failed to save data" });
         }
+    } else if (req.method === "GET") {
+        try {
+            // Mengambil semua data dari koleksi sensor_data
+            const data = await SensorData.find();
 
-        const data = new Sensor({ sensor, value, temperature, humidity });
-        await data.save();
-
-        res.status(201).json({ message: 'Sensor data saved successfully', data });
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: 'Failed to save data' });
+            res.status(200).json(data);
+        } catch (error) {
+            console.error("Error while retrieving data:", error);
+            res.status(500).json({ error: "Failed to retrieve data" });
+        }
+    } else {
+        // Method selain POST dan GET tidak diizinkan
+        res.status(405).json({ error: "Method not allowed" });
     }
-});
-
-// Route untuk mengambil data sensor (GET)
-app.get('/', async (req, res) => {
-    try {
-        const data = await Sensor.find().sort({ timestamp: -1 }).limit(100);
-        res.status(200).json(data);
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: 'Failed to retrieve data' });
-    }
-});
-
-// Route untuk menghapus data lebih dari 30 hari
-app.delete('/api/sensor/cleanup', async (req, res) => {
-    try {
-        const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-        const result = await Sensor.deleteMany({ timestamp: { $lt: thirtyDaysAgo } });
-
-        res.status(200).json({ message: `${result.deletedCount} old records deleted` });
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: 'Failed to cleanup data' });
-    }
-});
-
-// Default route
-app.get('/', (req, res) => {
-    res.send('Welcome to Sensor API');
-});
-
-// Menjalankan server
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+};
