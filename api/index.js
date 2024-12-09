@@ -26,7 +26,7 @@ const sensorSchema = new mongoose.Schema({
 const Sensor = mongoose.model('Sensor', sensorSchema);
 
 // Route untuk menerima data sensor (POST)
-app.post('/api/sensor', async (req, res) => {
+app.post('/', async (req, res) => {
     try {
         const { sensor, value, temperature, humidity } = req.body;
 
@@ -45,7 +45,7 @@ app.post('/api/sensor', async (req, res) => {
 });
 
 // Route untuk mengambil data sensor (GET)
-app.get('/api/sensor', async (req, res) => {
+app.get('/', async (req, res) => {
     try {
         const data = await Sensor.find().sort({ timestamp: -1 }).limit(100);
         res.status(200).json(data);
