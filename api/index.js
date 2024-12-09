@@ -1,5 +1,18 @@
-require('dotenv').config(); // Memuat variabel lingkungan dari .env
+const express = require('express');
+const cors = require('cors');
+const dotenv = require('dotenv').config();
 const mongoose = require('mongoose');
+
+const app = express();
+app.use(express.json());  // Untuk parsing JSON
+
+// Gunakan CORS middleware
+app.use(cors()); // Mengizinkan semua permintaan, untuk keamanan lebih baik diubah menjadi domain tertentu
+
+// Atau untuk mengizinkan hanya aplikasi Flutter tertentu, misalnya:
+app.use(cors({
+  origin: 'https://your-flutter-app-url.com', // Gantilah dengan URL aplikasi Flutter Anda
+}));
 
 const dbURI = process.env.MONGODB_URI || "mongodb+srv://rakha-dev:Rakhadwip14@iotrakhadev.mdt0f.mongodb.net/sensor_database?retryWrites=true&w=majority&appName=IotRakhaDev";
 let isConnected = false;
@@ -24,12 +37,7 @@ const sensorSchema = new mongoose.Schema({
 // Model MongoDB menggunakan skema 'sensorSchema'
 const Sensor = mongoose.model('Sensor', sensorSchema);
 
-/**
- * Endpoint API untuk menangani request HTTP
- * - Method:
- *    - POST: Menyimpan data sensor baru
- *    - GET: Mengambil semua data sensor
- */
+// Endpoint API untuk menangani request HTTP
 module.exports = async (req, res) => {
     await connectToDatabase();
 
@@ -65,4 +73,10 @@ module.exports = async (req, res) => {
         // Method selain POST dan GET tidak diizinkan
         res.status(405).json({ error: "Method tidak diizinkan" });
     }
-};  
+};
+
+// Inisialisasi server
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
