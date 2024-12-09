@@ -9,11 +9,6 @@ app.use(express.json());  // Untuk parsing JSON
 // Gunakan CORS middleware
 app.use(cors()); // Mengizinkan semua permintaan, untuk keamanan lebih baik diubah menjadi domain tertentu
 
-// Atau untuk mengizinkan hanya aplikasi Flutter tertentu, misalnya:
-app.use(cors({
-  origin: 'https://your-flutter-app-url.com', // Gantilah dengan URL aplikasi Flutter Anda
-}));
-
 const dbURI = process.env.MONGODB_URI || "mongodb+srv://rakha-dev:Rakhadwip14@iotrakhadev.mdt0f.mongodb.net/sensor_database?retryWrites=true&w=majority&appName=IotRakhaDev";
 let isConnected = false;
 
